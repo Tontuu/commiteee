@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+
+import subprocess, os
+import argparse
+import colorama
+import platform
+import re
+from enum import Enum
+from colorama import Fore as fg
+from colorama import Style as st
+from desktop_notifier import DesktopNotifier, Urgency
+
+helpMessage = st.BRIGHT + fg.LIGHTRED_EX + """\
+Usage""" + st.RESET_ALL + """: commiteee [OPTION...] [file|main]
+
+git status -s but prettier and with more features""" + st.BRIGHT + fg.LIGHTRED_EX + """
+
+Options""" + st.RESET_ALL + """:
+  -h, --help                   Show this help message and exit
+
+  -n, --notify                 Send Desktop notification
+  -c, --colors                 Print output with colors
+
+Notificatons:
+    Colors only works on linux through libnotify and a notification server like dunst
+"""
+
+class ReplaceType(Enum):
+    DEFAULT = 0
+    NOTIFY  = 1
+    COLORS  = 2
+
+def replace_status(string, replace_type):
+    table_format = {
+        "A ": ["Added:", "yellow", 0],
+        "AM": ["Modified:", "red", 1],
+        "R" : ["Renamed:", "red", 1],
+        "SS": ["To add:", "red", 2],
+        "M" : ["To commit:", "red", 3],
+        "U" : ["To merge:", "red", 3],
+        "D" : ["Deleted:", "red", 3],
+    }
+
+    string = string.replace("??", "SS").strip()
+
+    order = 0
+    if replace_type == ReplaceType.NOTIFY and platform.system() == "Linux":
+        for key, values in table_format.items():
+            if re.search(key, string[0:3]):
+                string = string.replace(
+                    key,
+                    "<b><span color=\"{}\">{}</span></b>"
+                    .format(values[1], values[0]))
+                order = values[2]
+
+    if replace_type == ReplaceType.COLORS:
+        for key, values in table_format.items():
+            if re.search(key, string[0:3]):
+                fg_evaluation = "fg." + values[1].upper()
+                string = string.replace(
+                    key, "{}{}{}"
+                    .format(st.BRIGHT + eval(fg_evaluation),
+                            values[0], st.RESET_ALL))
+                order = values[2]
+
+    if replace_type == ReplaceType.DEFAULT:
+        for key, values in table_format.items():
+            if re.search(key, string[0:3]):
+                string = string.replace(key, values[0])
+                order = values[2]
+    return (string, order)
+
+
+def makeArgs():
+    # Custom help message
+    class MyArgumentParser(argparse.ArgumentParser):
+        def format_help(self):
+            return helpMessage
+
+    parser = MyArgumentParser()
+
+    parser.add_argument("-c", "--colors", action="store_true")
+    parser.add_argument("-n", "--notify", action="store_true")
+
+    args = parser.parse_args();
+
+    return args
+
+def main():
+    args = makeArgs()
+
+    (exit_code, git_status) = subprocess.getstatusoutput("git status -s")
+    git_status = git_status.split('\n')
+    if exit_code == 128:
+        print("Commiteee-Error: No git repository in current path:" + os.getcwd())
+        exit(exit_code)
+
+    output = []
+    for line in git_status:
+        if args.notify:
+            (line, order) = replace_status(line, ReplaceType.NOTIFY)
+        elif args.colors:
+            (line, order) = replace_status(line, ReplaceType.COLORS)
+        else:
+            (line, order) = replace_status(line, ReplaceType.DEFAULT)
+        output.insert(order, line)
+
+    output = "\n".join(output)
+
+    if args.notify:
+        notifier = DesktopNotifier(app_name="Commiteee", notification_limit = 1)
+        notifier.send_sync(title="Commiteee", message=output, icon=False)
+    else:
+        print(output)
+
+if __name__ == "__main__":
+    main()
+    exit(0)

@@ -1,0 +1,2 @@
+colorama==0.4.6
+desktop_notifier==3.4.2
