@@ -37,18 +37,19 @@ def replace_status(string, replace_type):
         "R" : ["Renamed:", "red", 1],
         "SS": ["To add:", "red", 2],
         "M" : ["To commit:", "red", 3],
+        " M" : ["To commit:", "red", 3],
         "U" : ["To merge:", "red", 3],
         "D" : ["Deleted:", "red", 3],
     }
 
-    string = string.replace("??", "SS").strip()
+    string = string.replace("??", "SS")
 
     order = 0
     if replace_type == ReplaceType.NOTIFY and platform.system() == "Linux":
         for key, values in table_format.items():
             if re.search(key, string[0:3]):
                 string = string.replace(
-                    key,
+                    string[0:2],
                     "<b><span color=\"{}\">{}</span></b>"
                     .format(values[1], values[0]))
                 order = values[2]
@@ -58,7 +59,7 @@ def replace_status(string, replace_type):
             if re.search(key, string[0:3]):
                 fg_evaluation = "fg." + values[1].upper()
                 string = string.replace(
-                    key, "{}{}{}"
+                    string[0:2], "{}{}{}"
                     .format(st.BRIGHT + eval(fg_evaluation),
                             values[0], st.RESET_ALL))
                 order = values[2]
@@ -66,7 +67,7 @@ def replace_status(string, replace_type):
     if replace_type == ReplaceType.DEFAULT:
         for key, values in table_format.items():
             if re.search(key, string[0:3]):
-                string = string.replace(key, values[0])
+                string = string.replace(string[0:2], values[0])
                 order = values[2]
     return (string, order)
 
@@ -89,7 +90,7 @@ def makeArgs():
 def main():
     args = makeArgs()
 
-    (exit_code, git_status) = subprocess.getstatusoutput("git status -s")
+    (exit_code, git_status) = subprocess.getstatusoutput("git status --porcelain")
     git_status = git_status.split('\n')
     if exit_code == 128:
         print("Commiteee-Error: No git repository in current path:" + os.getcwd())
