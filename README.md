@@ -1,5 +1,5 @@
 # Commiteee
-git status -s but prettier with more features
+git status -s but prettier
 
 ## Requirements
 >Requires notify-send functionality [notification server in unix systems e.g dunst]
